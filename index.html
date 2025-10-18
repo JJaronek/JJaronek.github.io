@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Dny bez nehody — přesný čas (Gun.js)</title>
+  <title>LP COUNTER</title>
   <style>
     body {
       font-family: system-ui, Arial;
@@ -42,24 +42,17 @@
 </head>
 <body>
   <h1>Čas bez nehody</h1>
+  <h3>Jako nehoda se počítá mluvení o libovolné "Lesní paní", tj. 0 (E**), 1, 2 (PP) a další, které mohou následovat.</h3>
   <div id="counter" class="big">–</div>
   <div id="since" class="meta">Načítám...</div>
 
   <div>
     <button id="resetBtn">Resetovat (nehoda teď)</button>
   </div>
-
-  <div style="margin-top:1rem;">
-    <label>Heslo (volitelné): <input id="adminPass" placeholder="heslo" /></label>
-    <button id="setPassBtn">Nastavit heslo</button>
-  </div>
-
   <script src="https://cdn.jsdelivr.net/npm/gun/gun.min.js"></script>
   <script>
-    // 🕸 Inicializace GUN
     const gun = Gun({
-      // Volitelně můžeš přidat veřejný relay pro sdílení mezi uzly
-      // peers: ['https://gun-manhattan.herokuapp.com/gun']
+      peers: ['https://gun-manhattan.herokuapp.com/gun']
     });
 
     const root = gun.get('safety/counter');
@@ -148,3 +141,4 @@
   </script>
 </body>
 </html>
+

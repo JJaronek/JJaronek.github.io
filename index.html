@@ -32,36 +32,33 @@
       cursor: pointer;
     }
     button:hover { background: #1d4ed8; }
-    input {
-      padding: .4rem;
-      border: 1px solid #ccc;
-      border-radius: 4px;
-      margin-left: .3rem;
-    }
   </style>
 </head>
 <body>
   <h1>Čas bez nehody</h1>
-  <h3>Jako nehoda se počítá mluvení o libovolné "Lesní paní", tj. 0 (E**), 1, 2 (PP) a další, které mohou následovat.</h3>
+  <h3>
+    Jako nehoda se počítá mluvení o libovolné "Lesní paní", tj. 0 (E**), 1, 2 (PP)
+    a další, které mohou následovat.
+  </h3>
+
   <div id="counter" class="big">–</div>
   <div id="since" class="meta">Načítám...</div>
 
   <div>
     <button id="resetBtn">Resetovat (nehoda teď)</button>
   </div>
+
   <script src="https://cdn.jsdelivr.net/npm/gun/gun.min.js"></script>
   <script>
+    // Připojení k veřejnému Gun peeru (aby fungovalo i mezi zařízeními)
     const gun = Gun({
       peers: ['https://gun-manhattan.herokuapp.com/gun']
     });
 
     const root = gun.get('safety/counter');
-    const passNode = gun.get('safety/admin-pass');
     const counterEl = document.getElementById('counter');
     const sinceEl = document.getElementById('since');
     const resetBtn = document.getElementById('resetBtn');
-    const adminPassInput = document.getElementById('adminPass');
-    const setPassBtn = document.getElementById('setPassBtn');
 
     let lastAccident = null;
     let timer = null;
@@ -97,41 +94,11 @@
       lastAccident = data.lastAccident;
       updateDisplay();
       if (timer) clearInterval(timer);
-      timer = setInterval(updateDisplay, 1000); // aktualizace každou sekundu
+      timer = setInterval(updateDisplay, 1000);
     });
 
-    // Pomocné pro heslo
-    async function sha256hex(text) {
-      const enc = new TextEncoder().encode(text);
-      const buf = await crypto.subtle.digest('SHA-256', enc);
-      return Array.from(new Uint8Array(buf)).map(b=>b.toString(16).padStart(2,'0')).join('');
-    }
-
-    setPassBtn.addEventListener('click', async () => {
-      const pass = adminPassInput.value.trim();
-      if (!pass) return alert('Zadej heslo.');
-      const h = await sha256hex(pass);
-      passNode.put({ hash: h }, ack => {
-        if (ack.err) alert('Chyba při ukládání hesla: ' + ack.err);
-        else alert('Heslo nastaveno.');
-      });
-    });
-
-    async function checkPass(pass) {
-      if(!pass) return false;
-      const h = await sha256hex(pass);
-      return new Promise(resolve => {
-        passNode.once(data => {
-          if (!data || !data.hash) resolve(true); // není nastaveno => volný přístup
-          else resolve(data.hash === h);
-        });
-      });
-    }
-
-    resetBtn.addEventListener('click', async () => {
-      const pass = adminPassInput.value.trim();
-      const ok = await checkPass(pass);
-      if (!ok) return alert('Špatné heslo.');
+    // Reset bez hesla
+    resetBtn.addEventListener('click', () => {
       const nowIso = new Date().toISOString();
       root.put({ lastAccident: nowIso }, ack => {
         if (ack.err) alert('Chyba: ' + ack.err);
@@ -141,4 +108,3 @@
   </script>
 </body>
 </html>
-

@@ -53,11 +53,8 @@
     // Připojení k veřejnému Gun peeru (aby fungovalo i mezi zařízeními)
     const gun = Gun({
   peers: [
-    'https://gun-manhattan.herokuapp.com/gun',
-    'https://gunjs.herokuapp.com/gun',
-    'https://gun-eu.herokuapp.com/gun',
-    'https://gun-mtl.herokuapp.com/gun'
-  ]
+      'https://gun-relay-5uc8.onrender.com/gun'
+    ]
 });
 
     const root = gun.get('safety/counter');
@@ -113,4 +110,5 @@
   </script>
 </body>
 </html>
+
 

@@ -15,11 +15,7 @@
       text-align: center;
     }
     h1 { font-size: 2rem; margin-bottom: 1rem; }
-    .big {
-      font-size: 3rem;
-      font-weight: 700;
-      margin: 1rem 0;
-    }
+    .big { font-size: 3rem; font-weight: 700; margin: 1rem 0; }
     .meta { color: #555; margin-top: .5rem; font-size: 1rem; }
     button {
       padding: .6rem 1.2rem;
@@ -35,80 +31,109 @@
   </style>
 </head>
 <body>
-  <h1>Čas bez nehody</h1>
-  <h3>
-    Jako nehoda se počítá mluvení o libovolné "Lesní paní", tj. 0 (E**), 1, 2 (PP)
-    a další, které mohou následovat.
-  </h3>
+  <h1>LP Čas bez nehody</h1>
+  <div id="lp-counter" class="big">–</div>
+  <div id="lp-since" class="meta">Načítám...</div>
+  <button id="lp-reset">Resetovat LP</button>
 
-  <div id="counter" class="big">–</div>
-  <div id="since" class="meta">Načítám...</div>
+  <h1>Peťa Čas</h1>
+  <div id="peta-counter" class="big">–</div>
+  <div id="peta-since" class="meta">Načítám...</div>
+  <button id="peta-reset">Resetovat Peťa</button>
 
-  <div>
-    <button id="resetBtn">Resetovat (nehoda teď)</button>
-  </div>
+  <h1>Bára Zvuky</h1>
+  <div id="bara-counter" class="big">0</div>
+  <button id="bara-add">+1 Zvuk</button>
 
   <script src="https://cdn.jsdelivr.net/npm/gun/gun.min.js"></script>
   <script>
-    // Připojení k veřejnému Gun peeru (aby fungovalo i mezi zařízeními)
     const gun = Gun({
-  peers: [
-      'https://gun-relay-5uc8.onrender.com/gun'
-    ]
-});
+      peers: ['https://gun-relay-5uc8.onrender.com/gun']
+    });
 
-    const root = gun.get('safety/counter');
-    const counterEl = document.getElementById('counter');
-    const sinceEl = document.getElementById('since');
-    const resetBtn = document.getElementById('resetBtn');
+    // ---- LP Counter ----
+    const lpRoot = gun.get('lp/counter');
+    const lpCounterEl = document.getElementById('lp-counter');
+    const lpSinceEl = document.getElementById('lp-since');
+    const lpResetBtn = document.getElementById('lp-reset');
+    let lpLast = null, lpTimer = null;
 
-    let lastAccident = null;
-    let timer = null;
+    // ---- Peťa Counter ----
+    const petaRoot = gun.get('peta/counter');
+    const petaCounterEl = document.getElementById('peta-counter');
+    const petaSinceEl = document.getElementById('peta-since');
+    const petaResetBtn = document.getElementById('peta-reset');
+    let petaLast = null, petaTimer = null;
 
+    // ---- Bára Zvuky Counter ----
+    const baraRoot = gun.get('bara/zvuky');
+    const baraCounterEl = document.getElementById('bara-counter');
+    const baraAddBtn = document.getElementById('bara-add');
+
+    // ----- Pomocné funkce -----
     function formatDuration(ms) {
-      const totalSeconds = Math.floor(ms / 1000);
-      const days = Math.floor(totalSeconds / 86400);
-      const hours = Math.floor((totalSeconds % 86400) / 3600);
-      const minutes = Math.floor((totalSeconds % 3600) / 60);
-      const seconds = totalSeconds % 60;
+      const totalSec = Math.floor(ms/1000);
+      const days = Math.floor(totalSec/86400);
+      const hours = Math.floor((totalSec%86400)/3600);
+      const mins = Math.floor((totalSec%3600)/60);
+      const secs = totalSec%60;
       const parts = [];
-      if (days > 0) parts.push(`${days} dn${days===1?'e':'í'}`);
-      if (hours > 0 || days > 0) parts.push(`${hours} h`);
-      if (minutes > 0 || days > 0 || hours > 0) parts.push(`${minutes} min`);
-      parts.push(`${seconds} s`);
+      if(days>0) parts.push(`${days} dn${days===1?'e':'í'}`);
+      if(hours>0||days>0) parts.push(`${hours} h`);
+      if(mins>0||hours>0||days>0) parts.push(`${mins} min`);
+      parts.push(`${secs} s`);
       return parts.join(', ');
     }
 
-    function updateDisplay() {
-      if (!lastAccident) {
-        counterEl.textContent = '—';
-        sinceEl.textContent = 'Poslední nehoda: neznámá';
+    function updateTimeDisplay(elCounter, elSince, lastTime) {
+      if(!lastTime) {
+        elCounter.textContent = '–';
+        elSince.textContent = 'Poslední reset: neznámá';
         return;
       }
-      const diff = Date.now() - new Date(lastAccident).getTime();
-      counterEl.textContent = formatDuration(diff);
-      sinceEl.textContent = 'Poslední nehoda: ' + new Date(lastAccident).toLocaleString();
+      const diff = Date.now() - new Date(lastTime).getTime();
+      elCounter.textContent = formatDuration(diff);
+      elSince.textContent = 'Poslední reset: ' + new Date(lastTime).toLocaleString();
     }
 
-    // Posloucháme změny z GUN
-    root.on(data => {
-      if (!data || !data.lastAccident) return;
-      lastAccident = data.lastAccident;
-      updateDisplay();
-      if (timer) clearInterval(timer);
-      timer = setInterval(updateDisplay, 1000);
+    // ---- LP Data ----
+    lpRoot.on(data=>{
+      if(!data || !data.last) return;
+      lpLast = data.last;
+      updateTimeDisplay(lpCounterEl, lpSinceEl, lpLast);
+      if(lpTimer) clearInterval(lpTimer);
+      lpTimer = setInterval(()=>updateTimeDisplay(lpCounterEl, lpSinceEl, lpLast),1000);
+    });
+    lpResetBtn.addEventListener('click', ()=>{
+      const now = new Date().toISOString();
+      lpRoot.put({last: now});
     });
 
-    // Reset bez hesla
-    resetBtn.addEventListener('click', () => {
-      const nowIso = new Date().toISOString();
-      root.put({ lastAccident: nowIso }, ack => {
-        if (ack.err) alert('Chyba: ' + ack.err);
-        else alert('Resetováno na aktuální čas.');
+    // ---- Peťa Data ----
+    petaRoot.on(data=>{
+      if(!data || !data.last) return;
+      petaLast = data.last;
+      updateTimeDisplay(petaCounterEl, petaSinceEl, petaLast);
+      if(petaTimer) clearInterval(petaTimer);
+      petaTimer = setInterval(()=>updateTimeDisplay(petaCounterEl, petaSinceEl, petaLast),1000);
+    });
+    petaResetBtn.addEventListener('click', ()=>{
+      const now = new Date().toISOString();
+      petaRoot.put({last: now});
+    });
+
+    // ---- Bára Zvuky ----
+    baraRoot.on(data=>{
+      const val = (data && data.count) || 0;
+      baraCounterEl.textContent = val;
+    });
+    baraAddBtn.addEventListener('click', ()=>{
+      baraRoot.once(data=>{
+        const val = (data && data.count) || 0;
+        baraRoot.put({count: val+1});
       });
     });
+
   </script>
 </body>
 </html>
-
-
